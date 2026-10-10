@@ -35,6 +35,11 @@ assertSafeUrl(`${base.protocol}//${resolved.address}`);
 
 const api = (p) => `${config.baseUrl}${config.apiPrefix}${p}`;
 const ocrPrompt = "这是算术验证码图片,形如 3+5=? 或 2*4=? ,由数字和 + - * = ? 符号组成。请仔细读出图中算式,输出算式和计算结果。";
+// 验证码识别后端: 优先普适多模态(OpenAI 兼容视觉)API, 可用 config.ocr 或环境变量配置; 未配 key 时回退 mmx CLI
+const ocrCfg = config.ocr || {};
+const OCR_API_BASE = String(process.env.OCR_API_BASE || ocrCfg.apiBase || "").replace(/\/+$/, "");
+const OCR_API_KEY = process.env.OCR_API_KEY || ocrCfg.apiKey || "";
+const OCR_MODEL = process.env.OCR_MODEL || ocrCfg.model || "";
 
 function solveAnswer(text) {
   const m = text.match(/(\d+)\s*([+\-*×xX])\s*(\d+)/);
@@ -52,9 +57,39 @@ function solveAnswer(text) {
   return null;
 }
 
-async function ocrCaptcha(imgPath) {
+// 普适多模态 API(OpenAI 兼容 /chat/completions + image_url), 适配 OpenAI/MiniMax/Kimi/Qwen/DeepSeek 等
+async function ocrViaApi(imgB64) {
+  const base = OCR_API_BASE || "https://api.openai.com/v1";
+  const model = OCR_MODEL || "gpt-4o-mini";
+  const r = await fetch(`${base}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${OCR_API_KEY}` },
+    body: JSON.stringify({
+      model,
+      max_tokens: 120,
+      messages: [{ role: "user", content: [
+        { type: "text", text: ocrPrompt },
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imgB64}` } },
+      ] }],
+    }),
+  });
+  if (!r.ok) throw new Error(`OCR API ${r.status}: ${(await r.text()).slice(0, 150)}`);
+  const j = await r.json();
+  return String(j.choices?.[0]?.message?.content || "");
+}
+
+async function ocrViaMmx(imgPath) {
   const { stdout } = await run("mmx", ["vision", "describe", "--image", imgPath, "--prompt", ocrPrompt], { shell: true, timeout: 45000 });
   return String(JSON.parse(stdout).content || "");
+}
+
+async function ocrCaptcha(imgPath) {
+  if (OCR_API_KEY) {
+    if (!globalThis.__ocrBackend) { globalThis.__ocrBackend = 1; console.error(`[login] OCR 后端: 多模态API ${OCR_API_BASE || "(默认openai)"} / ${OCR_MODEL || "(默认)"}`); }
+    return ocrViaApi((await readFile(imgPath)).toString("base64"));
+  }
+  if (!globalThis.__ocrBackend) { globalThis.__ocrBackend = 1; console.error("[login] OCR 后端: mmx CLI(未配 OCR_API_KEY, 建议配置普适多模态API)"); }
+  return ocrViaMmx(imgPath);
 }
 
 export async function login({ quiet = false } = {}) {

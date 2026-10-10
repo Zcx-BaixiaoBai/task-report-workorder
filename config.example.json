@@ -12,6 +12,11 @@
     "channels": ["feishu"],
     "emailFrom": "your-agent-mailbox@example.com"
   },
+  "ocr": {
+    "apiBase": "",
+    "apiKey": "",
+    "model": ""
+  },
   "report": {
     "title": "金鹰工单分析晨报",
     "platformName": "金鹰智慧物业运营平台",

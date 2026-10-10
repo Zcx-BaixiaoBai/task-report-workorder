@@ -20,8 +20,21 @@ description: 金鹰智慧物业运营平台（任务/工单系统）的每日工
 ## 前置条件
 
 - **Node.js ≥ 18**。
-- **lark-cli**（飞书 CLI）、**agently-cli**（邮件）、**mmx**（MiniMax CLI，用于验证码 OCR）——三者各自 `auth login` 一次。
+- **lark-cli**（飞书 CLI）、**agently-cli**（邮件）——各自 `auth login` 一次。
+- **验证码识别（多模态视觉）**：推荐配置任意 **OpenAI 兼容视觉 API**（见下"验证码 OCR 配置"）；未配置时自动回退 `mmx` CLI（MiniMax）。
 - 使用者需有该工单系统的账号，以及一个能收飞书私信的飞书账号。
+
+### 验证码 OCR 配置（普适多模态 API）
+
+登录的算术验证码靠视觉模型识别。默认走**任意 OpenAI 兼容的 `/chat/completions` 视觉接口**（OpenAI gpt-4o / MiniMax-VL / Kimi / Qwen-VL / DeepSeek-VL 等皆可），用 `config.json` 的 `ocr` 段或环境变量配置：
+
+| 配置项 | 环境变量 | 说明 |
+|---|---|---|
+| `ocr.apiBase` | `OCR_API_BASE` | 如 `https://api.openai.com/v1`、`https://api.minimax.chat/v1` |
+| `ocr.apiKey` | `OCR_API_KEY` | 你的视觉模型 API key |
+| `ocr.model` | `OCR_MODEL` | 视觉模型名，如 `gpt-4o-mini`、`MiniMax-VL-01` |
+
+未配 `apiKey` 时回退 `mmx vision describe`（需已装 mmx CLI）。建议配 API 以彻底脱离 mmx 依赖。
 
 ## 安装与配置
 
