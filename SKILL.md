@@ -41,6 +41,12 @@ description: 金鹰智慧物业运营平台（任务/工单系统）的每日工
 - `PP-OCRv5`（通用文字 OCR）实测 4 个样本识别为乱码：`=LD`、`2=0*6`、`γ*4≈?`、`M`（置信度约 0.5），无法解析成算式。
 飞桨擅长**干净的文档/票据文字**（表格、扫描件），不擅长噪声验证码。算术验证码需要"读出算式并理解语义"的多模态视觉模型，故本 skill 用 OpenAI 兼容视觉 API（mmx 兜底）。若你的目标系统验证码是清晰纯文本，可另接飞桨。
 
+**实测推荐后端**：阿里云百炼/MaaS 的 OpenAI 兼容端点 + `qwen3.8-max`（视觉）识别算术验证码**首次即成功**（实测 `8*2=?→16`、`5*0=?→0`，两次均一次过），比 mmx（常需 2-3 次重试）更稳。配置示例：
+```json
+"ocr": { "apiBase": "https://<你的ws-xxx>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", "apiKey": "<你的key>", "model": "qwen3.8-max" }
+```
+注：同一 key 下 `qwen3.8-27b` 返回 403（无该模型权限），`qwen3.8-flash` 未测视觉；若你的 key 无 qwen 视觉权限，换任意 OpenAI 兼容视觉模型（gpt-4o / MiniMax-VL / Kimi / Qwen-VL）即可。
+
 ## 安装与配置
 
 ```bash
