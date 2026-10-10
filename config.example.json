@@ -1,0 +1,22 @@
+{
+  "baseUrl": "http://ge-propel-web.jinying.com",
+  "apiPrefix": "/prod-api",
+  "username": "填入你的账号",
+  "password": "",
+  "tokenFile": ".ge_token.json",
+  "maxLoginAttempts": 6,
+  "notify": {
+    "sendTo": "self",
+    "selfFeishuId": "ou_填入你自己的飞书open_id",
+    "fallbackFeishuId": "ou_同上",
+    "channels": ["feishu"],
+    "emailFrom": "your-agent-mailbox@example.com"
+  },
+  "report": {
+    "title": "金鹰工单分析晨报",
+    "platformName": "金鹰智慧物业运营平台",
+    "projectIds": [],
+    "projectNameRegex": ""
+  },
+  "projectOwners": {}
+}

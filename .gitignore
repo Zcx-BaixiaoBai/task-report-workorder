@@ -1,0 +1,13 @@
+# 真实配置(含账号密码/open_id)——只提交 config.example.json
+config.json
+# 登录令牌缓存
+.ge_token.json
+# 运行产物
+data/
+*.log
+# 飞书联系人缓存/临时
+feishu_contacts.json
+feishu_ids.json
+.captcha_attempt.jpg
+auth_qr*.png
+.mimosa/

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>技能标签负责人配置 · 任务系统运维</title>
+<style>
+  :root { --bd:#e3e6eb; --mut:#6b7280; --pri:#2563eb; --bg:#f6f7f9; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:#1f2329; }
+  header { background:#fff; border-bottom:1px solid var(--bd); padding:14px 24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:5; }
+  header h1 { font-size:17px; margin:0; }
+  header .sub { color:var(--mut); font-size:12px; }
+  .btn { border:1px solid var(--bd); background:#fff; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:13px; }
+  .btn:hover { border-color:var(--pri); color:var(--pri); }
+  .btn.primary { background:var(--pri); border-color:var(--pri); color:#fff; }
+  .btn.primary:hover { opacity:.9; }
+  .btn:disabled { opacity:.5; cursor:wait; }
+  #status { margin-left:auto; font-size:12px; color:var(--mut); max-width:400px; }
+  #status.err { color:#dc2626; } #status.ok { color:#16a34a; }
+  main { padding:20px 24px 60px; max-width:1240px; margin:0 auto; }
+  .card { background:#fff; border:1px solid var(--bd); border-radius:10px; margin-bottom:20px; overflow:hidden; }
+  .card > h2 { font-size:14px; margin:0; padding:12px 16px; border-bottom:1px solid var(--bd); background:#fafbfc; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  select { border:1px solid var(--bd); border-radius:6px; padding:5px 8px; font-size:13px; background:#fff; max-width:260px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { border-bottom:1px solid var(--bd); padding:7px 10px; text-align:left; vertical-align:middle; }
+  th { font-size:12px; color:var(--mut); font-weight:600; background:#fff; }
+  tr:last-child td { border-bottom:none; }
+  .cat-row td { background:#f0f4ff; font-weight:600; font-size:13px; color:#334155; }
+  input[type=text],input[type=email] { width:100%; border:1px solid var(--bd); border-radius:5px; padding:5px 8px; font-size:13px; }
+  input:focus,select:focus { outline:none; border-color:var(--pri); }
+  .tagval { color:var(--mut); font-size:11px; font-family:Consolas,monospace; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .totals { display:flex; gap:12px; flex-wrap:wrap; padding:14px 16px; }
+  .kpi { flex:1; min-width:130px; background:#f8fafc; border:1px solid var(--bd); border-radius:8px; padding:10px 12px; }
+  .kpi .v { font-size:22px; font-weight:700; } .kpi .k { font-size:12px; color:var(--mut); }
+  .hot .v { color:#dc2626; }
+  label.ck { display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .empty { padding:20px; color:var(--mut); text-align:center; }
+  .pill { font-size:11px; background:#eef2ff; color:#4338ca; border-radius:99px; padding:1px 8px; }
+  .hint { font-size:12px; color:var(--mut); font-weight:400; }
+</style>
+</head>
+<body>
+<header>
+  <h1>技能标签负责人配置</h1>
+  <span class="sub">金鹰智慧物业运营平台 · 工单报表 · 按项目每日统计推送</span>
+  <button class="btn" id="btnReload">刷新</button>
+  <button class="btn primary" id="btnSave">保存配置</button>
+  <button class="btn" id="btnStats">立即生成统计</button>
+  <button class="btn" id="btnReport">生成昨日晨报</button>
+  <a class="btn" id="reportLink" href="/report/today" target="_blank">查看晨报</a>
+  <span id="status"></span>
+</header>
+<main>
+  <div class="card">
+    <h2>
+      项目：<select id="projSelect"></select>
+      <button class="btn" id="btnCopyAll" title="把当前项目的负责人配置复制到其余所有项目">复制本项目配置到所有项目</button>
+      <span class="pill" id="fcCount">飞书联系人：-</span>
+      <button class="btn" id="btnSyncFc" title="枚举您飞书会话(群聊/单聊)的全部成员，更新联系人库">同步飞书联系人</button>
+      <span class="hint">负责人按「项目 × 技能标签」配置；输入姓名可从飞书联系人联想，自动填 open_id</span>
+    </h2>
+    <div style="max-height:520px;overflow:auto">
+      <table id="tagTable">
+        <thead><tr>
+          <th style="width:200px">技能标签</th><th style="width:140px">负责人姓名</th>
+          <th>邮箱（邮件推送）</th><th style="width:210px">飞书 open_id（可留空，按姓名自动查找）</th>
+          <th style="width:56px">启用</th>
+        </tr></thead>
+        <tbody id="tagBody"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2 id="statsTitle">今日统计</h2>
+    <div class="totals" id="kpis"></div>
+    <div style="max-height:420px;overflow:auto">
+      <table id="statsTable" style="display:none">
+        <thead><tr><th>技能标签</th><th>分类</th><th class="num">进行中累计</th><th class="num">今日新增</th><th class="num">未完成累计</th><th class="num">今日新增未完成</th><th class="num">今日完成</th><th class="num">已作废</th></tr></thead>
+        <tbody id="statsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<datalist id="userList"></datalist>
+<script>
+const $ = (s) => document.querySelector(s);
+let TAGS = [], PROJECTS = [], PROJ_OWNERS = {}, CUR_PID = null, STATS = null, FEISHU = [], SYS_USERS = [];
+function setStatus(msg, cls) { const el = $("#status"); el.textContent = msg || ""; el.className = cls || ""; }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function ownerCount(pid) { return Object.values(PROJ_OWNERS[pid] || {}).filter(o => o && o.name).length; }
+
+function buildUserList() {
+  const seen = new Set();
+  const opts = [];
+  for (const c of FEISHU) { if (!seen.has(c.name)) { seen.add(c.name); opts.push(`<option value="${esc(c.name)}">飞书 · ${esc(c.dept || "")}</option>`); } }
+  for (const u of SYS_USERS) { const n = String(u.text || "").split("(")[0]; if (n && !seen.has(n)) { seen.add(n); opts.push(`<option value="${esc(n)}">系统 · ${esc(u.text)}</option>`); } }
+  $("#userList").innerHTML = opts.join("");
+}
+
+async function loadContacts(silent) {
+  try {
+    const r = await (await fetch("/api/feishu/contacts")).json();
+    FEISHU = r.contacts || [];
+    $("#fcCount").textContent = `飞书联系人：${FEISHU.length} 人${r.syncedAt ? "（" + new Date(r.syncedAt).toLocaleString("zh-CN") + "）" : ""}`;
+    buildUserList();
+    if (!silent) setStatus(`飞书联系人已加载：${FEISHU.length} 人`, "ok");
+  } catch (e) { if (!silent) setStatus("联系人加载失败: " + e.message, "err"); }
+}
+
+$("#btnSyncFc").onclick = async () => {
+  $("#btnSyncFc").disabled = true; setStatus("正在同步飞书联系人（枚举您的全部会话成员，约1分钟）…");
+  try {
+    const r = await (await fetch("/api/feishu/sync", { method: "POST", body: "{}" })).json();
+    if (!r.ok) throw new Error(r.error);
+    FEISHU = r.contacts || [];
+    $("#fcCount").textContent = `飞书联系人：${FEISHU.length} 人（${new Date(r.syncedAt).toLocaleString("zh-CN")}）`;
+    buildUserList();
+    setStatus(`同步完成：共 ${r.summary.count} 人（原 ${r.summary.prev} 人），${r.summary.withDept} 人含部门`, "ok");
+  } catch (e) { setStatus("同步失败: " + e.message, "err"); }
+  $("#btnSyncFc").disabled = false;
+};
+
+// 姓名 → 唯一命中飞书联系人时自动填 open_id
+document.addEventListener("change", (e) => {
+  const inp = e.target.closest?.("[data-f=name]");
+  if (!inp) return;
+  const tr = inp.closest("tr");
+  const fid = tr.querySelector('[data-f="feishuId"]');
+  const name = inp.value.trim();
+  const hits = FEISHU.filter(c => c.name === name);
+  if (hits.length === 1) {
+    fid.value = hits[0].openId; fid.dataset.auto = "1";
+    setStatus(`已匹配飞书联系人：${name}（${hits[0].dept || "无部门信息"}）`, "ok");
+  } else if (fid.dataset.auto === "1") {
+    fid.value = ""; delete fid.dataset.auto;
+    if (hits.length > 1) setStatus(`「${name}」在联系人中有 ${hits.length} 个同名，请手动填写 open_id`, "err");
+  }
+});
+document.addEventListener("input", (e) => {
+  if (e.target.matches?.('[data-f="feishuId"]')) delete e.target.dataset.auto;
+});
+
+async function loadAll() {
+  setStatus("加载项目与技能标签…");
+  try {
+    const r = await (await fetch("/api/tags")).json();
+    if (!r.ok) throw new Error(r.error);
+    TAGS = r.tags; PROJECTS = r.projects || []; PROJ_OWNERS = r.projectOwners || {};
+    SYS_USERS = r.users || [];
+    buildUserList();
+    if (!CUR_PID || !PROJECTS.some(p => String(p.id) === String(CUR_PID))) CUR_PID = PROJECTS[0] ? String(PROJECTS[0].id) : null;
+    renderProjSelect(); render();
+    setStatus(r.source === "live" ? `实时加载：${PROJECTS.length} 个项目、${TAGS.length} 个技能标签` : "接口暂不可达，展示缓存：" + r.source, r.source === "live" ? "ok" : "err");
+  } catch (e) { setStatus("加载失败: " + e.message, "err"); }
+}
+
+function renderProjSelect() {
+  $("#projSelect").innerHTML = PROJECTS.map(p =>
+    `<option value="${esc(p.id)}" ${String(p.id) === String(CUR_PID) ? "selected" : ""}>${esc(p.name)}${ownerCount(p.id) ? `（已配${ownerCount(p.id)}人）` : ""}</option>`).join("")
+    || `<option value="">无项目数据</option>`;
+}
+
+function render() {
+  const owners = PROJ_OWNERS[CUR_PID] || {};
+  const byCat = {};
+  for (const t of TAGS) (byCat[t.categoryLabel || t.category] ??= []).push(t);
+  let html = "";
+  for (const [cat, list] of Object.entries(byCat)) {
+    html += `<tr class="cat-row"><td colspan="5">${esc(cat)}（${list.length}）</td></tr>`;
+    for (const t of list) {
+      const o = owners[t.value] || {};
+      html += `<tr data-v="${esc(t.value)}">
+        <td>${esc(t.label)}<br><span class="tagval">${esc(t.value)}</span></td>
+        <td><input type="text" data-f="name" list="userList" value="${esc(o.name || "")}" placeholder="姓名"></td>
+        <td><input type="email" data-f="email" value="${esc(o.email || "")}" placeholder="name@example.com"></td>
+        <td><input type="text" data-f="feishuId" value="${esc(o.feishuId || "")}" placeholder="ou_xxx（可留空）"></td>
+        <td><label class="ck"><input type="checkbox" data-f="enabled" ${o.enabled !== false ? "checked" : ""}></label></td>
+      </tr>`;
+    }
+  }
+  $("#tagBody").innerHTML = html || `<tr><td colspan="5" class="empty">暂无标签</td></tr>`;
+}
+
+function collectCurrent() { // 把当前项目表格内容收进 PROJ_OWNERS
+  const owners = {};
+  for (const tr of document.querySelectorAll("#tagBody tr[data-v]")) {
+    const v = tr.dataset.v, g = (f) => tr.querySelector(`[data-f="${f}"]`);
+    const name = g("name").value.trim(), email = g("email").value.trim(), fid = g("feishuId").value.trim();
+    if (!name && !email && !fid) continue;
+    owners[v] = { name, email, feishuId: fid, enabled: g("enabled").checked };
+  }
+  PROJ_OWNERS[CUR_PID] = owners;
+}
+
+$("#projSelect").onchange = () => { collectCurrent(); CUR_PID = $("#projSelect").value; renderProjSelect(); render(); setStatus(`已切换到项目：${$("#projSelect").selectedOptions[0]?.textContent || ""}`); };
+
+$("#btnCopyAll").onclick = () => {
+  collectCurrent();
+  const src = PROJ_OWNERS[CUR_PID] || {};
+  if (!Object.keys(src).length) return setStatus("当前项目还没有配置，无法复制", "err");
+  for (const p of PROJECTS) PROJ_OWNERS[String(p.id)] = JSON.parse(JSON.stringify(src));
+  renderProjSelect();
+  setStatus(`已复制到全部 ${PROJECTS.length} 个项目，请点击"保存配置"生效`, "ok");
+};
+
+$("#btnSave").onclick = async () => {
+  collectCurrent();
+  $("#btnSave").disabled = true; setStatus("保存中…");
+  try {
+    const r = await (await fetch("/api/owners", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ projectOwners: PROJ_OWNERS }) })).json();
+    if (!r.ok) throw new Error(r.error);
+    renderProjSelect();
+    setStatus(`已保存 ${r.saved} 条「项目×标签」负责人配置`, "ok");
+  } catch (e) { setStatus("保存失败: " + e.message, "err"); }
+  $("#btnSave").disabled = false;
+};
+
+$("#btnReload").onclick = async () => { collectCurrent(); await loadAll(); };
+
+const KPIS = [["进行中累计","ongoing_total",1],["今日新增","new_today",0],["未完成累计","unfinished_total",1],["今日新增未完成","new_today_unfinished",0],["今日完成","finished_today",0]];
+let STATS_PID = "all";
+
+function renderStats() {
+  if (!STATS) return;
+  const proj = STATS_PID === "all" ? null : (STATS.projects || []).find(p => String(p.id) === String(STATS_PID));
+  const t = proj ? proj.totals : STATS.totals;
+  const tags = proj ? proj.tags : STATS.tags;
+  const scope = proj ? proj.name : "全部项目";
+  $("#statsTitle").innerHTML = `${STATS.date} 统计 · <span class="pill">${esc(scope)}</span>
+    <select id="statsProjSel">
+      <option value="all" ${STATS_PID === "all" ? "selected" : ""}>全部项目</option>
+      ${(STATS.projects || []).map(p => `<option value="${esc(p.id)}" ${String(p.id) === String(STATS_PID) ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
+    </select>
+    <span class="hint">生成于 ${new Date(STATS.generatedAt).toLocaleString("zh-CN")} · 全量 ${STATS.workorderTotal} 单</span>`;
+  $("#statsProjSel").onchange = () => { STATS_PID = $("#statsProjSel").value; renderStats(); };
+  $("#kpis").innerHTML = KPIS.map(([k, f, hot]) => `<div class="kpi ${hot ? "hot" : ""}"><div class="v">${t[f]}</div><div class="k">${k}</div></div>`).join("");
+  $("#statsTable").style.display = "";
+  $("#statsBody").innerHTML = tags.map(x => `<tr>
+    <td>${esc(x.label)}</td><td>${esc(x.categoryLabel)}</td>
+    <td class="num">${x.ongoing_total}</td><td class="num">${x.new_today}</td><td class="num">${x.unfinished_total}</td>
+    <td class="num">${x.new_today_unfinished}</td><td class="num">${x.finished_today}</td><td class="num">${x.voided_total}</td>
+  </tr>`).join("") || `<tr><td colspan="8" class="empty">该项目暂无工单</td></tr>`;
+}
+
+$("#btnStats").onclick = async () => {
+  collectCurrent();
+  $("#btnStats").disabled = true; setStatus("正在登录系统并统计（含验证码识别，约需半分钟）…");
+  try {
+    const r = await (await fetch("/api/stats/run", { method: "POST", body: "{}" })).json();
+    if (!r.ok) throw new Error(r.error);
+    STATS = r.stats; renderStats(); setStatus("统计完成", "ok");
+  } catch (e) { setStatus("统计失败: " + e.message, "err"); }
+  $("#btnStats").disabled = false;
+};
+
+$("#btnReport").onclick = async () => {
+  collectCurrent();
+  $("#btnReport").disabled = true; setStatus("正在登录系统并生成昨日晨报（含验证码识别，约需半分钟）…");
+  try {
+    const r = await (await fetch("/api/report/run", { method: "POST", body: "{}" })).json();
+    if (!r.ok) throw new Error(r.error);
+    const s = r.summary;
+    setStatus(`晨报已生成：${s.date}，${s.projects.map(p=>p.name).join(" / ")}，涉及 ${s.owners.length} 位负责人`, "ok");
+    window.open("/report/today", "_blank");
+  } catch (e) { setStatus("晨报生成失败: " + e.message, "err"); }
+  $("#btnReport").disabled = false;
+};
+
+(async function init() {
+  await Promise.all([loadAll(), loadContacts(true)]);
+  try {
+    const r = await (await fetch("/api/stats/latest")).json();
+    if (r.ok && r.stats) { STATS = r.stats; renderStats(); }
+  } catch {}
+})();
+</script>
+</body>
+</html>
