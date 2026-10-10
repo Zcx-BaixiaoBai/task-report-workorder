@@ -26,7 +26,7 @@ node ge_server.mjs                     # 配置前端 http://127.0.0.1:8790
 node ge_report_html.mjs                # 昨日 HTML 晨报
 ```
 
-依赖：Node ≥ 18、lark-cli、agently-cli、mmx（验证码 OCR）。详见 [SKILL.md](./SKILL.md)。
+依赖：Node ≥ 18、lark-cli、agently-cli。验证码识别走**多模态视觉 API**（OpenAI 兼容，推荐 `qwen3.8-flash`）：配置 `config.json` 的 `ocr.apiBase/apiKey/model` 或环境变量 `OCR_API_BASE/OCR_API_KEY/OCR_MODEL`；未配置时回退 mmx CLI。详见 [SKILL.md](./SKILL.md)。
 
 ## 定时
 
@@ -35,6 +35,7 @@ node ge_report_html.mjs                # 昨日 HTML 晨报
 
 ## 注意
 
+- 验证码 OCR 实测：`qwen3.8-flash`/`qwen3.8-max` 首次即识别成功（推荐 flash，更省更快）；飞桨 PaddleOCR 对带干扰线的算术验证码识别为乱码、不适用。
 - 完成判定只认 `taskStatus==2`（归档）；`finishTime` 实为更新时间，不能单独判完成。
 - 飞书机器人受"应用可用范围"限制；默认 `sendTo=self` 只发本人不受限。
 - 密码不要写进提交；用环境变量或本地 `config.json`（已 gitignore）。
