@@ -63,6 +63,7 @@ async function ocrViaApi(imgB64) {
   const model = OCR_MODEL || "gpt-4o-mini";
   const r = await fetch(`${base}/chat/completions`, {
     method: "POST",
+    signal: AbortSignal.timeout(40000),
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${OCR_API_KEY}` },
     body: JSON.stringify({
       model,
@@ -97,11 +98,12 @@ export async function login({ quiet = false } = {}) {
   const max = config.maxLoginAttempts || 6;
   const imgPath = resolve(__dirname, ".captcha_attempt.jpg");
   for (let attempt = 1; attempt <= max; attempt++) {
-    const capRes = await fetch(api("/code"));
+    const capRes = await fetch(api("/code"), { signal: AbortSignal.timeout(30000) });
     const cap = await capRes.json();
     if (cap.captchaEnabled === false) {
       const r = await (await fetch(api("/auth/login"), {
         method: "POST", headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(30000),
         body: JSON.stringify({ username: config.username, password: config.password })
       })).json();
       if (r.token || r.access_token || (r.data && (r.data.access_token || r.data.token))) return finish(r, attempt, log);
@@ -121,6 +123,7 @@ export async function login({ quiet = false } = {}) {
     log(`第${attempt}次: 算式识别="${ocrText.replace(/\s+/g, " ").slice(0, 60)}" -> code=${answer}`);
     const r = await (await fetch(api("/auth/login"), {
       method: "POST", headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(30000),
       body: JSON.stringify({ username: config.username, password: config.password, code: answer, uuid: cap.uuid })
     })).json();
     if (r.token || r.access_token || (r.data && (r.data.access_token || r.data.token))) return finish(r, attempt, log);

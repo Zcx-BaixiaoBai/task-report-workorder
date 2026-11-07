@@ -29,6 +29,7 @@ async function apiGet(path, params = {}, retryAuth = true) {
   const qs = new URLSearchParams(params).toString();
   const res = await fetch(`${API}${path}${qs ? "?" + qs : ""}`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(60000),
   });
   const j = await res.json();
   if (j.code === 401 && retryAuth) {
