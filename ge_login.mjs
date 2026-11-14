@@ -98,6 +98,7 @@ export async function login({ quiet = false } = {}) {
   const max = config.maxLoginAttempts || 6;
   const imgPath = resolve(__dirname, ".captcha_attempt.jpg");
   for (let attempt = 1; attempt <= max; attempt++) {
+    try {
     const capRes = await fetch(api("/code"), { signal: AbortSignal.timeout(30000) });
     const cap = await capRes.json();
     if (cap.captchaEnabled === false) {
@@ -128,6 +129,10 @@ export async function login({ quiet = false } = {}) {
     })).json();
     if (r.token || r.access_token || (r.data && (r.data.access_token || r.data.token))) return finish(r, attempt, log);
     log(`第${attempt}次登录失败: ${JSON.stringify(r).slice(0, 150)}`);
+    } catch (e) {
+      log(`第${attempt}次请求异常: ${String(e.message || e).slice(0, 120)}`);
+      continue;
+    }
   }
   throw new Error(`自动登录失败: ${max} 次尝试均未成功`);
 }
